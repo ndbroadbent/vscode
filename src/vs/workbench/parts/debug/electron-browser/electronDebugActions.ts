@@ -35,6 +35,44 @@ export class CopyValueAction extends Action {
 	}
 }
 
+export class CopyAsJSONAction extends Action {
+	static readonly ID = "workbench.debug.viewlet.action.copyAsJSON";
+	static LABEL = nls.localize("copyAsJSON", "Copy as JSON");
+
+	constructor(
+		id: string,
+		label: string,
+		private value: any,
+		@IDebugService private debugService: IDebugService
+	) {
+		super(id, label, "debug-action copy-as-json");
+		this._enabled =
+			typeof this.value === "string" ||
+			(this.value instanceof Variable && !!this.value.evaluateName);
+	}
+
+	public run(): Promise<any> {
+		if (this.value instanceof Variable) {
+			const frameId = this.debugService.getViewModel().focusedStackFrame
+				.frameId;
+			const session = this.debugService.getViewModel().focusedSession;
+
+			return session.evaluate(`JSON.stringify(${this.value.evaluateName})`, frameId).then(
+				result => {
+					if (!result.body.result) {
+						return;
+					}
+					clipboard.writeText(result.body.result.slice(1, -1));
+				},
+				err => clipboard.writeText(this.value.value)
+			);
+		}
+
+		clipboard.writeText(this.value);
+		return Promise.resolve(undefined);
+	}
+}
+
 export class CopyEvaluatePathAction extends Action {
 	static readonly ID = 'workbench.debug.viewlet.action.copyEvaluatePath';
 	static LABEL = nls.localize('copyAsExpression', "Copy as Expression");

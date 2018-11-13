@@ -11,7 +11,6 @@ import { Variable } from 'vs/workbench/parts/debug/common/debugModel';
 import { IDebugService, IStackFrame, IReplElement } from 'vs/workbench/parts/debug/common/debug';
 import { clipboard } from 'electron';
 import { isWindows } from 'vs/base/common/platform';
-
 export class CopyValueAction extends Action {
 	static readonly ID = 'workbench.debug.viewlet.action.copyValue';
 	static LABEL = nls.localize('copyValue', "Copy Value");
@@ -56,6 +55,48 @@ export class CopyAsJSONAction extends Action {
 			const frameId = this.debugService.getViewModel().focusedStackFrame
 				.frameId;
 			const session = this.debugService.getViewModel().focusedSession;
+
+			return session.evaluate(`JSON.stringify(${this.value.evaluateName})`, frameId).then(
+				result => {
+					if (!result.body.result) {
+						return;
+					}
+					clipboard.writeText(result.body.result.slice(1, -1));
+				},
+				err => clipboard.writeText(this.value.value)
+			);
+		}
+
+		clipboard.writeText(this.value);
+		return Promise.resolve(undefined);
+	}
+}
+
+export class CopyAsJSAction extends Action {
+	static readonly ID = "workbench.debug.viewlet.action.copyAsJS";
+	static LABEL = nls.localize("copyAsJS", "Copy as JS");
+
+	constructor(
+		id: string,
+		label: string,
+		private value: any,
+		@IDebugService private debugService: IDebugService
+	) {
+		super(id, label, "debug-action copy-as-js");
+		this._enabled =
+			typeof this.value === "string" ||
+			(this.value instanceof Variable && !!this.value.evaluateName);
+	}
+
+	public run(): Promise<any> {
+		if (this.value instanceof Variable) {
+			const frameId = this.debugService.getViewModel().focusedStackFrame
+				.frameId;
+			const session = this.debugService.getViewModel().focusedSession;
+
+			const javascriptStringify = require('javascript-stringify');
+			const a = javascriptStringify({ foo: 123 })
+			console.log(a)
 
 			return session.evaluate(`JSON.stringify(${this.value.evaluateName})`, frameId).then(
 				result => {
